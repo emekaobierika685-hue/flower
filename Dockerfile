@@ -1,6 +1,6 @@
-FROM python:3.8-slim-buster
+FROM python:3.10-slim
 
-# System deps
+# Install Node.js and system dependencies required for image processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
@@ -11,23 +11,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Node for fp.js (fingerprintjs2 hash execution)
-# Debian buster's nodejs is old but sufficient for `node -e`
-RUN node --version && npm --version
-
 WORKDIR /app
 
-# Python deps
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy project files
 COPY . .
 
-# Create runtime dirs (script already does this, but belt & suspenders)
+# Create runtime directories
 RUN mkdir -p solver-db logs
 
-# Optional: mount these at runtime
+# Persist logs and solver database
 VOLUME ["/app/solver-db", "/app/logs"]
 
+# Default port for the API and Web Console
+EXPOSE 5000
+
+# Set default environment variables for the container
+ENV MODE=api
+ENV PORT=5000
+ENV CREATE_WORKERS=4
+
+# Start the unified application
 CMD ["python", "-u", "account_creator.py"]
