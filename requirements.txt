@@ -5,3 +5,4 @@ pycryptodome>=3.9.0
 requests>=2.24.0
 PyYAML>=5.3.0
 exrex>=0.10.5
+flask>=2.0.0
