@@ -187,7 +187,7 @@ def create_account(ch):
 # =========================================================================
 API_KEY = os.environ.get("API_KEY")
 CREATE_WORKERS = int(os.environ.get("CREATE_WORKERS", "4"))
-API_PORT = int(os.environ.get("PORT", "8080")) # Railway uses 8080 by default
+API_PORT = int(os.environ.get("PORT", "8080"))
 
 app = Flask(__name__)
 
@@ -256,20 +256,26 @@ def solve_one_captcha(timeout=120):
 
 @app.route("/")
 def index():
-    # Redirect root to the live console
     return redirect("/api/console")
+
+@app.route("/api/stats")
+def api_stats():
+    return jsonify(
+        created=created_counter.total,
+        solve_ok=solver_success_counter.total,
+        solve_fail=solver_failure_counter.total
+    )
 
 @app.route("/api/create", methods=["POST"])
 @require_api_key
 def api_create():
     body = request.get_json(silent=True) or {}
     target = body.get("target") or body.get("follow")
-    count = int(body.get("followers", 1))  # Allows requesting multiple followers
+    count = int(body.get("followers", 1))
 
     if not target:
         return jsonify(error="Missing 'target' or 'follow' ID/Username"), 400
 
-    # Resolve target ID first
     try:
         target_id = int(target)
     except (TypeError, ValueError):
@@ -278,14 +284,12 @@ def api_create():
 
     results = []
     
-    # Loop to generate requested number of accounts
     for i in range(count):
         try:
             log_to_console("STARTED", f"Starting job {i+1}/{count} for target {target_id}")
             ch = solve_one_captcha()
             acct = create_account(ch)
             
-            # Follow
             follow_status = "success"
             try:
                 follow_user(acct, target_id)
@@ -307,9 +311,6 @@ def api_create():
     return jsonify(success=True, target_id=target_id, results=results)
 
 
-# -------------------------------------------------------------------------
-# Live Web Console (SSE)
-# -------------------------------------------------------------------------
 @app.route("/api/console")
 def console_page():
     html = """
@@ -322,6 +323,7 @@ def console_page():
             body { background-color: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Courier New', monospace; margin: 0; padding: 20px; }
             .header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px; color: #fff; }
             .title { color: #4ec9b0; font-weight: bold; }
+            .stats { font-size: 0.9em; color: #9cdcfe; }
             #console { height: calc(100vh - 80px); overflow-y: auto; font-size: 14px; line-height: 1.5; }
             .log-line { white-space: pre-wrap; word-wrap: break-word; }
             .time { color: #569cd6; }
@@ -335,11 +337,14 @@ def console_page():
     <body>
         <div class="header">
             <div class="title">Roblox Account Generator // Live Console</div>
+            <div class="stats" id="stats">Connecting...</div>
         </div>
         <div id="console"></div>
         <script>
             const consoleDiv = document.getElementById('console');
+            const statsDiv = document.getElementById('stats');
             const evtSource = new EventSource("/api/console/stream");
+            
             evtSource.onmessage = function(e) {
                 const data = JSON.parse(e.data);
                 if(data.type === "PING") return;
@@ -349,6 +354,12 @@ def console_page():
                 consoleDiv.appendChild(div);
                 consoleDiv.scrollTop = consoleDiv.scrollHeight;
             };
+
+            setInterval(() => {
+                fetch('/api/stats').then(r => r.json()).then(d => {
+                    statsDiv.innerHTML = `Created: ${d.created} | Captcha Solved: ${d.solve_ok} | Failed: ${d.solve_fail}`;
+                }).catch(e => {});
+            }, 2000);
         </script>
     </body>
     </html>
