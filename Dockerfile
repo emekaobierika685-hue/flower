@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-# Install Node.js and system dependencies required for image processing
+# Install Node.js (required for fp.js) and system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
@@ -13,26 +13,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
 COPY . .
 
-# Create runtime directories
-RUN mkdir -p solver-db logs
+# Railway uses a dynamic PORT, but we default to 5000 just in case
+ENV PORT=5000
+ENV MODE=api
 
-# Persist logs and solver database
-VOLUME ["/app/solver-db", "/app/logs"]
-
-# Default port for the API and Web Console
+# Expose the port (Railway maps this automatically)
 EXPOSE 5000
 
-# Set default environment variables for the container
-ENV MODE=api
-ENV PORT=5000
-ENV CREATE_WORKERS=4
-
-# Start the unified application
 CMD ["python", "-u", "account_creator.py"]
