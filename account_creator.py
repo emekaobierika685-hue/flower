@@ -60,11 +60,6 @@ resubmit_queue = Queue()
 appear = {}
 cache = {}
 
-try:
-    with open("solver-db/appear.p", "rb") as f: appear = pickle.load(f)
-    with open("solver-db/cache.p", "rb") as f: cache = pickle.load(f)
-except: pass
-
 # =========================================================================
 # LIVE CONSOLE LOGGING SYSTEM (SSE)
 # =========================================================================
